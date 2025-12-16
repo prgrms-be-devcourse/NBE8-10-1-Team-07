@@ -4,11 +4,13 @@ import com.back.domain.product.product.entity.Product;
 import com.back.global.jpa.entity.BaseEntity;
 import jakarta.persistence.*;
 import lombok.Getter;
+import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 @Getter
 @Setter
 @Entity
+@NoArgsConstructor
 @Table(name = "order_item")
 public class OrderItem extends BaseEntity {
 
@@ -22,4 +24,11 @@ public class OrderItem extends BaseEntity {
 
     @Column(nullable = false)
     private int quantity;
+
+    public static OrderItem create(Product product, int quantity) {
+        OrderItem item = new OrderItem();
+        item.product = product;
+        item.quantity = quantity;
+        return item;
+    }
 }
