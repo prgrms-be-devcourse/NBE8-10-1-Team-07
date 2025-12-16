@@ -7,6 +7,10 @@ import lombok.Getter;
 import lombok.Setter;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
+
+import static jakarta.persistence.FetchType.LAZY;
 
 @Getter
 @Setter
@@ -14,7 +18,7 @@ import java.time.LocalDateTime;
 @Table(name = "orders")
 public class Order extends BaseEntity {
 
-    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @ManyToOne(fetch = LAZY, optional = false)
     @JoinColumn(name = "customer_email", referencedColumnName = "email")
     private Customer customer;
 
@@ -24,12 +28,16 @@ public class Order extends BaseEntity {
     @Column(name = "total_amount", nullable = false)
     private int totalAmount;
 
+    @Enumerated(EnumType.STRING)
     @Column(name = "order_status", nullable = false, length = 50)
-    private String orderStatus;
+    private OrderStatus orderStatus = OrderStatus.ORDERED;
 
     @Column(name = "shipping_address", nullable = false, length = 255)
     private String shippingAddress;
 
     @Column(name = "shipping_code", nullable = false)
-    private int shippingCode;
+    private String shippingCode;
+
+    @OneToMany(mappedBy = "order", fetch = LAZY, cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<OrderItem> orderItems = new ArrayList<>();
 }

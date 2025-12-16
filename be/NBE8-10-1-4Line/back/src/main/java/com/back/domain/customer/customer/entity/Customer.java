@@ -16,7 +16,4 @@ public class Customer extends BaseEntity {
     @Column(nullable = false, unique = true, length = 100)
     private String email;
 
-    // 기타 고객 정보 필드 (예: name, phone_number 등)는 필요에 따라 추가하세요.
-
-
 }
