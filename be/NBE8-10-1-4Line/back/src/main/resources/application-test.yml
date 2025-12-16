@@ -1,14 +1,6 @@
-<<<<<<< HEAD
 spring:
   datasource:
     url: jdbc:h2:mem:db_test;MODE=MySQL
     username: sa
     password:
-=======
-spring:
-  datasource:
-    url: jdbc:h2:mem:db_test;MODE=MySQL
-    username: sa
-    password:
->>>>>>> 755fe7b (feat/OrderUpdate)
     driver-class-name: org.h2.Driver

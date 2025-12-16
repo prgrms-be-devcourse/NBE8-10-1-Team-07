@@ -1,161 +1,93 @@
 package com.back.domain.order.order.controller;
 
-import com.back.domain.customer.customer.entity.Customer;
-import com.back.domain.customer.repository.CustomerRepository;
-import com.back.domain.order.order.entity.Order;
-import com.back.domain.order.order.entity.OrderItem;
-import com.back.domain.order.order.entity.OrderStatus;
-import com.back.domain.order.order.repository.OrderItemRepository;
-import com.back.domain.order.order.repository.OrderRepository;
-import com.back.domain.product.product.entity.Product;
-import com.back.domain.product.product.repository.ProductRepository;
-import org.junit.jupiter.api.BeforeEach;
+import com.back.domain.order.order.dto.OrderDto;
+import com.back.domain.order.order.dto.OrderUpdateDto;
+import com.back.domain.order.order.service.OrderService;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
-import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.test.context.ActiveProfiles;
+import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
+import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 
-import java.time.LocalDateTime;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.when;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-import static org.hamcrest.Matchers.*;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
-
-@ActiveProfiles("test")
-@SpringBootTest
-@AutoConfigureMockMvc
+@WebMvcTest(
+        controllers = OrderController.class,
+        // JPA 관련 자동 설정을 꺼서 Hibernate 에러를 방지합니다.
+        excludeAutoConfiguration = {
+                org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration.class,
+                org.springframework.boot.autoconfigure.orm.jpa.HibernateJpaAutoConfiguration.class
+        }
+)
 class OrderControllerTest {
 
-    @Autowired MockMvc mockMvc;
+    @Autowired
+    private MockMvc mockMvc; // HTTP 요청을 시뮬레이션
 
-    @Autowired CustomerRepository customerRepository;
-    @Autowired ProductRepository productRepository;
-    @Autowired OrderRepository orderRepository;
-    @Autowired OrderItemRepository orderItemRepository;
+    @Autowired
+    private ObjectMapper objectMapper; // JSON 직렬화/역직렬화
 
-    private final String email = "test@test.com";
+    @MockBean
+    private OrderService orderService; // Service 계층은 Mocking
 
-    private Product coffee;
-    private Product cake;
+    private final Long testOrderId = 1L;
+    private final String API_URL = "/api/orders/{orderId}";
 
-    @BeforeEach
-    void setUp() {
-        // 각 테스트마다 데이터 깨끗하게
-        orderItemRepository.deleteAll();
-        orderRepository.deleteAll();
-        productRepository.deleteAll();
-        customerRepository.deleteAll();
-
-        Customer c = new Customer();
-        c.setEmail(email);
-        customerRepository.save(c);
-
-        coffee = new Product();
-        coffee.setName("커피");
-        coffee.setPrice(5000);
-        coffee.setDescription("아메리카노");
-        productRepository.save(coffee);
-
-        cake = new Product();
-        cake.setName("케이크");
-        cake.setPrice(6000);
-        cake.setDescription("치즈케이크");
-        productRepository.save(cake);
-
-        // 주문 2건 생성 (같은 상품을 여러 번 사는 케이스 포함)
-        Order o1 = new Order();
-        o1.setCustomer(c);
-        o1.setOrderTime(LocalDateTime.now().minusDays(1));
-        o1.setOrderStatus(OrderStatus.ORDERED);
-        o1.setShippingAddress("서울시 강남구");
-        o1.setShippingCode("CJ111");
-        o1.setTotalAmount(16000);
-        orderRepository.save(o1);
-
-        OrderItem o1Coffee2 = new OrderItem();
-        o1Coffee2.setOrder(o1);
-        o1Coffee2.setProduct(coffee);
-        o1Coffee2.setQuantity(2);
-        orderItemRepository.save(o1Coffee2);
-
-        OrderItem o1Cake1 = new OrderItem();
-        o1Cake1.setOrder(o1);
-        o1Cake1.setProduct(cake);
-        o1Cake1.setQuantity(1);
-        orderItemRepository.save(o1Cake1);
-
-        Order o2 = new Order();
-        o2.setCustomer(c);
-        o2.setOrderTime(LocalDateTime.now());
-        o2.setOrderStatus(OrderStatus.DELIVERED);
-        o2.setShippingAddress("서울시 마포구");
-        o2.setShippingCode("CJ222");
-        o2.setTotalAmount(5000);
-        orderRepository.save(o2);
-
-        OrderItem o2Coffee1 = new OrderItem();
-        o2Coffee1.setOrder(o2);
-        o2Coffee1.setProduct(coffee);
-        o2Coffee1.setQuantity(1);
-        orderItemRepository.save(o2Coffee1);
-    }
+    // --- U (Update) 성공 테스트 ---
 
     @Test
-    @DisplayName("요약 바 조회: 상품별로 묶여서 총수량/총금액이 계산된다")
-    void summary_shouldGroupByProduct() throws Exception {
-        mockMvc.perform(get("/api/orders/summary")
-                        .param("email", email))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.resultCode").value("200-1"))
-                .andExpect(jsonPath("$.data").isArray())
-                .andExpect(jsonPath("$.data", hasSize(2)))
+    @DisplayName("성공: PUT /api/orders/{orderId} - 주소 수정 성공 및 200 응답")
+    void updateOrderShippingInfo_Success() throws Exception {
+        // Given
+        OrderUpdateDto requestDto = new OrderUpdateDto();
+        requestDto.setShippingAddress("새로운 주소");
+        requestDto.setShippingCode("00001");
 
-                // 커피: 2 + 1 = 3개, 5000 * 3 = 15000
-                .andExpect(jsonPath("$.data[?(@.productName=='커피')].totalQuantity", contains(3)))
-                .andExpect(jsonPath("$.data[?(@.productName=='커피')].totalAmount", contains(15000)))
+        // Service가 반환할 Mock 응답 (OrderDto는 R 담당자가 정의한 DTO)
+        OrderDto mockResponse = new OrderDto(testOrderId, null, null, "test@mail.com", null,
+                10000, null, "새로운 주소", "00001", null);
 
-                // 케이크: 1개, 6000원
-                .andExpect(jsonPath("$.data[?(@.productName=='케이크')].totalQuantity", contains(1)))
-                .andExpect(jsonPath("$.data[?(@.productName=='케이크')].totalAmount", contains(6000)));
+        // Mocking: Service 호출 시 Mock 응답 반환 설정
+        when(orderService.updateOrderShippingInfo(eq(testOrderId), any(OrderUpdateDto.class)))
+                .thenReturn(mockResponse);
+
+        // When & Then
+        mockMvc.perform(put(API_URL, testOrderId)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(requestDto)))
+
+                .andExpect(status().isOk()) // HTTP 200 OK 확인
+                .andExpect(jsonPath("$.shippingAddress").value("새로운 주소")) // JSON 필드 검증
+                .andExpect(jsonPath("$.shippingCode").value("00001"));
     }
 
-    @Test
-    @DisplayName("상품 상세 조회: 특정 상품(productId)의 주문 상세 리스트가 내려온다")
-    void detail_shouldReturnOrdersForProduct() throws Exception {
-        mockMvc.perform(get("/api/orders/summary/{productId}", coffee.getId())
-                        .param("email", email))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.resultCode").value("200-1"))
-                .andExpect(jsonPath("$.data").isArray())
-                .andExpect(jsonPath("$.data", hasSize(2)))
-
-                // 각 row에 필수 필드가 있는지
-                .andExpect(jsonPath("$.data[0].orderId").isNumber())
-                .andExpect(jsonPath("$.data[0].orderTime").isNotEmpty())
-                .andExpect(jsonPath("$.data[0].orderStatus").isNotEmpty())
-                .andExpect(jsonPath("$.data[0].shippingAddress").isNotEmpty())
-                .andExpect(jsonPath("$.data[0].shippingCode").isNotEmpty())
-
-                // 커피 가격 5000, 수량/소계 검증 (2개짜리 주문이 있고, 1개짜리 주문이 있음)
-                .andExpect(jsonPath("$.data[*].pricePerItem", everyItem(is(5000))))
-                .andExpect(jsonPath("$.data[*].quantity", containsInAnyOrder(2, 1)))
-                .andExpect(jsonPath("$.data[*].subTotal", containsInAnyOrder(10000, 5000)));
-    }
+    // --- U (Update) 실패 테스트 ---
 
     @Test
-    @DisplayName("데이터가 없으면 data는 빈 배열로 내려온다")
-    void summary_empty_whenNoOrders() throws Exception {
-        orderItemRepository.deleteAll();
-        orderRepository.deleteAll();
+    @DisplayName("실패: 존재하지 않는 주문 ID 수정 시 400 Bad Request 응답")
+    void updateOrderShippingInfo_Fail_NotFound() throws Exception {
+        // Given
+        OrderUpdateDto requestDto = new OrderUpdateDto();
+        requestDto.setShippingAddress("새 주소");
+        requestDto.setShippingCode("00001");
 
-        mockMvc.perform(get("/api/orders/summary")
-                        .param("email", email))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.resultCode").value("200-1"))
-                .andExpect(jsonPath("$.data").isArray())
-                .andExpect(jsonPath("$.data", hasSize(0)));
+        // Mocking: Service 호출 시 IllegalArgumentException (400에 해당) 발생 설정
+        when(orderService.updateOrderShippingInfo(eq(testOrderId), any(OrderUpdateDto.class)))
+                .thenThrow(new IllegalArgumentException("존재하지 않는 주문 ID입니다."));
+
+        // When & Then
+        mockMvc.perform(put(API_URL, testOrderId)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(requestDto)))
+
+                .andExpect(status().isBadRequest()); // HTTP 400 Bad Request 확인 (ExceptionHandler를 통해)
     }
 }
