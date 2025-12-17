@@ -9,6 +9,7 @@ import com.back.domain.order.order.service.OrderService;
 import com.back.global.rsData.RsData;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -67,7 +68,7 @@ public class OrderController {
     @PutMapping("/{orderId}")
     public ResponseEntity<OrderDto> updateOrderShippingInfo(
             @PathVariable("orderId") Long orderId,
-            @RequestBody OrderUpdateDto request) {
+            @Valid @RequestBody OrderUpdateDto request) {
 
         OrderDto updatedOrder = orderService.updateOrderShippingInfo(orderId, request);
 
