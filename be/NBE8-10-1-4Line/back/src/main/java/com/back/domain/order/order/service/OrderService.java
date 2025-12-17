@@ -1,7 +1,7 @@
 package com.back.domain.order.order.service;
 
 import com.back.domain.customer.customer.entity.Customer;
-import com.back.domain.customer.repository.CustomerRepository;
+import com.back.domain.customer.customer.repository.CustomerRepository;
 import com.back.domain.order.order.dto.OrderCreateRequestDto;
 import com.back.domain.order.order.entity.Order;
 import com.back.domain.order.order.entity.OrderItem;
