@@ -25,9 +25,6 @@ class CustomerControllerTest {
     @Autowired
     private CustomerRepository customerRepository;
 
-    @Autowired
-    private ObjectMapper objectMapper;
-
     @Test
     @DisplayName("이메일이 존재하면 exists=true 반환")
     void exists_true() throws Exception {
@@ -57,5 +54,34 @@ class CustomerControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.resultCode").value("200-1"))
                 .andExpect(jsonPath("$.data.exists").value(false));
+    }
+
+    @Test
+    @DisplayName("email 파라미터가 없으면 400 반환")
+    void exists_email_missing() throws Exception {
+        mockMvc.perform(
+                        get("/api/customers/exists")
+                )
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    @DisplayName("email이 빈 문자열이면 400 반환")
+    void exists_email_blank() throws Exception {
+        mockMvc.perform(
+                        get("/api/customers/exists")
+                                .param("email", "")
+                )
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    @DisplayName("email 형식이 올바르지 않으면 400 반환")
+    void exists_email_invalid_format() throws Exception {
+        mockMvc.perform(
+                        get("/api/customers/exists")
+                                .param("email", "invalid-email")
+                )
+                .andExpect(status().isBadRequest());
     }
 }
