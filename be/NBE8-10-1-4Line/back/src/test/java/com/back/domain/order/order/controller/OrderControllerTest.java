@@ -140,7 +140,7 @@ class OrderControllerTest {
     void deleteOrder_success() throws Exception {
         // 1) given: 테스트 데이터 저장
         Customer customer = new Customer();
-        customer.setEmail("test@test.com");
+        customer.setEmail("tes12t@test.com");
         em.persist(customer);
 
         Product product = new Product();
@@ -174,13 +174,13 @@ class OrderControllerTest {
         assertThat(orderRepository.existsById(orderId)).isTrue();
 
         // 2) when: DELETE 호출
-        mockMvc.perform(delete("/api/orders/{id}", orderId)
+        mockMvc.perform(delete("/api/orders/{orderId}", orderId)
                         .contentType(MediaType.APPLICATION_JSON))
                 // 3) then: 응답 검증
                 .andExpect(status().isOk())
                 .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
                 .andExpect(jsonPath("$.resultCode").value("200-1"))
-                .andExpect(jsonPath("$.msg").value(orderId + "번 주문이 삭제되었습니다."));
+                .andExpect(jsonPath("$.msg").value("주문이 취소(삭제)되었습니다."));
 
         // 4) then: DB 삭제 검증
         em.flush();
