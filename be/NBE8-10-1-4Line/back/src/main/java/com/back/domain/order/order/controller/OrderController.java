@@ -33,6 +33,13 @@ import java.util.List;
 public class OrderController {
     private final OrderService orderService;
 
+    @DeleteMapping("/{orderId}")
+    @Operation(summary = "주문 취소")
+    public RsData<Void> delete(@PathVariable Long orderId) {
+        orderService.delete(orderId);
+        return new RsData<>("200-1", "주문이 취소(삭제)되었습니다.", null);
+    }
+
     @PostMapping
     @Operation(summary = "생성")
     public RsData<OrderDto> create(@Valid @RequestBody OrderCreateRequestDto req) {
@@ -47,21 +54,6 @@ public class OrderController {
                 "201-1",
                 "주문이 생성되었습니다.",
                 new OrderDto(order)
-        );
-    }
-
-    @DeleteMapping("/{id}")
-    @Transactional
-    @Operation(summary = "주문 삭제")
-    public RsData<Void> delete(@PathVariable long id) {
-        Order order = orderService.findById(id)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "주문이 존재하지 않습니다. id=" + id));
-
-        orderService.delete(order);
-
-        return new RsData<>(
-                "200-1",
-                "%d번 주문이 삭제되었습니다.".formatted(id)
         );
     }
 
