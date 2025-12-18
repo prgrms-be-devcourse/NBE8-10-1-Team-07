@@ -4,10 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { orderCreateStyles as s } from "@/app/style/orderCreate";
 
-/**
- * 백엔드 공통 응답 타입 (Spring RsData)
- * - statusCode는 @JsonIgnore라 프론트에 안 옴
- */
+/** Spring RsData */
 type RsData<T> = {
   resultCode: string;
   msg: string;
@@ -59,21 +56,22 @@ async function apiPost<T>(url: string, body: unknown) {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
   });
+
   if (!res.ok) {
-    // 백엔드에서 400/404 등 내려올 때 메시지 보고 싶으면:
     let text = "";
     try {
       text = await res.text();
     } catch {}
     throw new Error(`HTTP ${res.status}${text ? ` - ${text}` : ""}`);
   }
+
   return (await res.json()) as RsData<T>;
 }
 
 export default function OrderCreatePage() {
   const router = useRouter();
 
-  // ✅ 상품 목록 (백엔드 연동)
+  // 상품 목록
   const [products, setProducts] = useState<Product[]>([]);
   const [productsLoading, setProductsLoading] = useState(true);
   const [productsError, setProductsError] = useState<string | null>(null);
@@ -90,6 +88,10 @@ export default function OrderCreatePage() {
   const [creating, setCreating] = useState(false);
   const [createError, setCreateError] = useState<string | null>(null);
 
+  // ✅ 결제 완료 "팝업(모달)" 상태
+  const [isSuccessOpen, setIsSuccessOpen] = useState(false);
+  const [successText, setSuccessText] = useState("");
+
   const totalAmount = useMemo(
     () => cart.reduce((sum, item) => sum + item.price * item.quantity, 0),
     [cart]
@@ -102,10 +104,7 @@ export default function OrderCreatePage() {
         setProductsLoading(true);
         setProductsError(null);
 
-        const res = await apiGet<Product[]>(
-          `${API_BASE}/api/products`
-        );
-
+        const res = await apiGet<Product[]>(`${API_BASE}/api/products`);
         setProducts(res.data ?? []);
       } catch (e: any) {
         setProductsError(e?.message ?? "상품 목록 로딩 실패");
@@ -117,7 +116,12 @@ export default function OrderCreatePage() {
     run();
   }, []);
 
+  const clearMessages = () => {
+    setCreateError(null);
+  };
+
   const addToCart = (p: Product) => {
+    clearMessages();
     setCart((prev) => {
       const found = prev.find((x) => x.productId === p.id);
       if (!found) {
@@ -133,6 +137,7 @@ export default function OrderCreatePage() {
   };
 
   const inc = (productId: number) => {
+    clearMessages();
     setCart((prev) =>
       prev.map((x) =>
         x.productId === productId ? { ...x, quantity: x.quantity + 1 } : x
@@ -141,6 +146,7 @@ export default function OrderCreatePage() {
   };
 
   const dec = (productId: number) => {
+    clearMessages();
     setCart((prev) =>
       prev
         .map((x) =>
@@ -151,6 +157,7 @@ export default function OrderCreatePage() {
   };
 
   const remove = (productId: number) => {
+    clearMessages();
     setCart((prev) => prev.filter((x) => x.productId !== productId));
   };
 
@@ -160,8 +167,8 @@ export default function OrderCreatePage() {
     const trimmedCode = shippingCode.trim();
 
     if (!trimmedEmail) return "이메일을 입력해주세요.";
-    // 백엔드에도 @Email이 있지만 프론트에서도 최소 검증
-    if (!/^\S+@\S+\.\S+$/.test(trimmedEmail)) return "이메일 형식이 올바르지 않습니다.";
+    if (!/^\S+@\S+\.\S+$/.test(trimmedEmail))
+      return "이메일 형식이 올바르지 않습니다.";
 
     if (!trimmedAddr) return "배송지 주소를 입력해주세요.";
     if (!trimmedCode) return "우편번호를 입력해주세요.";
@@ -172,6 +179,7 @@ export default function OrderCreatePage() {
     return null;
   };
 
+  // ✅ 결제(주문 생성) 후: 페이지 이동 X, 모달 팝업만 표시
   const onCheckout = async () => {
     const err = validateBeforeCheckout();
     if (err) {
@@ -190,16 +198,21 @@ export default function OrderCreatePage() {
         productId: x.productId,
         quantity: x.quantity,
       })),
-      // ✅ totalAmount는 백엔드 DTO에 없으므로 절대 보내지 않음
+      // ✅ totalAmount는 백엔드 DTO에 없으므로 보내지 않음
     };
 
     try {
       const res = await apiPost<OrderDto>(`${API_BASE}/api/orders`, payload);
 
-      // 주문 성공 → 주문 내역 페이지로 이동
-      sessionStorage.setItem("orderEmail", payload.email);
-      alert(res.msg || "주문이 생성되었습니다.");
-      router.push("/orders");
+      // ✅ alert 대신 "팝업(모달)"
+      setSuccessText(res.msg || "결제가 완료되었습니다.");
+      setIsSuccessOpen(true);
+
+      // ✅ 결제 후 장바구니/주소 초기화 (원하는 UX)
+      setCart([]);
+      setShippingAddress("");
+      setShippingCode("");
+      // email은 유지(원하면 setEmail("")로 변경)
     } catch (e: any) {
       setCreateError(e?.message ?? "주문 생성 실패");
     } finally {
@@ -231,9 +244,7 @@ export default function OrderCreatePage() {
             {productsLoading ? (
               <div className={s.empty}>상품 불러오는 중...</div>
             ) : productsError ? (
-              <div className={s.empty}>
-                상품 로딩 실패: {productsError}
-              </div>
+              <div className={s.empty}>상품 로딩 실패: {productsError}</div>
             ) : products.length === 0 ? (
               <div className={s.empty}>등록된 상품이 없습니다.</div>
             ) : (
@@ -247,7 +258,11 @@ export default function OrderCreatePage() {
                         {p.price.toLocaleString()}원
                       </div>
                     </div>
-                    <button className={s.btnAdd} onClick={() => addToCart(p)}>
+                    <button
+                      className={s.btnAdd}
+                      onClick={() => addToCart(p)}
+                      disabled={creating}
+                    >
                       추가
                     </button>
                   </div>
@@ -360,9 +375,61 @@ export default function OrderCreatePage() {
               onClick={onCheckout}
               disabled={cart.length === 0 || creating}
             >
-              {creating ? "주문 생성 중..." : "결제하기"}
+              {creating ? "결제 처리 중..." : "결제하기"}
             </button>
           </section>
+        </div>
+      </div>
+
+      {/* ✅ 결제 완료 팝업(모달) */}
+      <SuccessModal
+        open={isSuccessOpen}
+        title="결제 완료"
+        message={successText || "결제가 완료되었습니다."}
+        onClose={() => setIsSuccessOpen(false)}
+      />
+    </div>
+  );
+}
+
+function SuccessModal({
+  open,
+  title,
+  message,
+  onClose,
+}: {
+  open: boolean;
+  title: string;
+  message: string;
+  onClose: () => void;
+}) {
+  if (!open) return null;
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center"
+      role="dialog"
+      aria-modal="true"
+      onMouseDown={(e) => {
+        // 배경 클릭 닫기
+        if (e.target === e.currentTarget) onClose();
+      }}
+    >
+      {/* dim */}
+      <div className="absolute inset-0 bg-black/40" />
+
+      {/* modal */}
+      <div className="relative z-10 w-[92%] max-w-sm rounded-xl border border-gray-200 bg-white p-5 shadow-lg">
+        <div className="text-base font-bold text-gray-900">{title}</div>
+        <div className="mt-2 text-sm text-gray-600">{message}</div>
+
+        <div className="mt-4 flex justify-end gap-2">
+          <button
+            className="rounded-md border border-gray-900 px-4 py-2 text-sm font-semibold text-gray-900 hover:bg-gray-900 hover:text-white"
+            onClick={onClose}
+          >
+            확인
+          </button>
         </div>
       </div>
     </div>
