@@ -1,5 +1,7 @@
 package com.back.domain.order.order.controller;
 
+import com.back.domain.order.order.dto.OrderCreateRequestDto;
+import com.back.domain.order.order.dto.OrderDto;
 import com.back.domain.order.order.dto.OrderDto;
 import com.back.domain.order.order.dto.OrderUpdateDto;
 import com.back.domain.order.order.entity.Order;
@@ -11,6 +13,8 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.http.HttpStatus;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -28,6 +32,23 @@ import java.util.List;
 @Tag(name = "OrderController", description = "API 주문 컨트롤러")
 public class OrderController {
     private final OrderService orderService;
+
+    @PostMapping
+    @Operation(summary = "생성")
+    public RsData<OrderDto> create(@Valid @RequestBody OrderCreateRequestDto req) {
+        Order order = orderService.create(
+                req.email(),
+                req.shippingAddress(),
+                req.shippingCode(),
+                req.items()
+        );
+
+        return new RsData<>(
+                "201-1",
+                "주문이 생성되었습니다.",
+                new OrderDto(order)
+        );
+    }
 
     @DeleteMapping("/{id}")
     @Transactional
