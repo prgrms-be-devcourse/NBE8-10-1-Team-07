@@ -1,5 +1,7 @@
 package com.back.domain.order.order.controller;
 
+import com.back.domain.order.order.dto.OrderDto;
+import com.back.domain.order.order.dto.OrderUpdateDto;
 import com.back.domain.order.order.entity.Order;
 import com.back.domain.order.order.dto.OrderProductDetailDto;
 import com.back.domain.order.order.dto.OrderProductSummaryDto;
@@ -7,6 +9,7 @@ import com.back.domain.order.order.service.OrderService;
 import com.back.global.rsData.RsData;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.transaction.annotation.Transactional;
@@ -58,5 +61,21 @@ public class OrderController {
     ) {
         return new RsData<>("200-1", "주문 상세(상품별) 조회 성공",
                 orderService.getProductDetails(email, productId));
+    }
+
+    @Operation(summary = "주문 배송 정보 수정", description = "주소와 우편번호 수정")
+    @PutMapping("/{orderId}")
+    public RsData<OrderDto> updateOrderShippingInfo(
+            @PathVariable("orderId") Long orderId,
+            @Valid @RequestBody OrderUpdateDto request) {
+
+        OrderDto updatedOrder = orderService.updateOrderShippingInfo(orderId, request);
+
+        // 팀의 응답 규격인 RsData로 감싸서 반환
+        return new RsData<>(
+                "200-1",
+                "%d번 주문의 배송 정보가 수정되었습니다.".formatted(orderId),
+                updatedOrder
+        );
     }
 }
