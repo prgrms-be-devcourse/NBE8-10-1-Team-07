@@ -43,6 +43,11 @@ public class Order extends BaseEntity {
     @OneToMany(mappedBy = "order", fetch = LAZY, cascade = CascadeType.ALL, orphanRemoval = true)
     private List<OrderItem> orderItems = new ArrayList<>();
 
+    public void addOrderItem(OrderItem orderItem) {
+        this.orderItems.add(orderItem);
+        orderItem.assignOrder(this);
+    }
+
     public static Order create(Customer customer, String shippingAddress, String shippingCode, List<OrderItem> orderItems) {
         Order order = new Order();
         order.customer = customer;
@@ -50,21 +55,18 @@ public class Order extends BaseEntity {
         order.orderStatus = OrderStatus.ORDERED;
         order.shippingAddress = shippingAddress;
         order.shippingCode = shippingCode;
-        order.orderItems = orderItems;
 
-        order.calculateTotalAmount(orderItems);
+        for (OrderItem item : orderItems) {
+            order.addOrderItem(item);
+        }
 
+        order.calculateTotalAmount();
         return order;
     }
 
-    private void calculateTotalAmount(List<OrderItem> items) {
-        int total = 0;
-        for (OrderItem item : items) {
-            // this.orderItems.add(item);
-            item.setOrder(this);
-
-            total += item.getProduct().getPrice() * item.getQuantity();
-        }
-        this.totalAmount = total;
+    private void calculateTotalAmount() {
+        this.totalAmount = this.orderItems.stream()
+                .mapToInt(item -> item.getProduct().getPrice() * item.getQuantity())
+                .sum();
     }
 }

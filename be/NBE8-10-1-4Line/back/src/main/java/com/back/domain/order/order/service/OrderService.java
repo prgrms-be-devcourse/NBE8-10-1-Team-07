@@ -2,30 +2,20 @@ package com.back.domain.order.order.service;
 
 import com.back.domain.customer.customer.entity.Customer;
 import com.back.domain.customer.customer.repository.CustomerRepository;
-import com.back.domain.order.order.dto.OrderCreateRequestDto;
+import com.back.domain.order.order.dto.*;
 import com.back.domain.order.order.entity.Order;
 import com.back.domain.order.order.entity.OrderItem;
-import com.back.domain.order.order.dto.OrderUpdateDto;
-import com.back.domain.order.order.dto.OrderDto;
-import com.back.domain.order.order.entity.Order;
 import com.back.domain.order.order.entity.OrderStatus;
+import com.back.domain.order.order.repository.OrderItemRepository;
 import com.back.domain.order.order.repository.OrderRepository;
 import com.back.domain.product.product.entity.Product;
 import com.back.domain.product.product.repository.ProductRepository;
-import jakarta.validation.Valid;
-import com.back.domain.order.order.dto.OrderProductDetailDto;
-import com.back.domain.order.order.dto.OrderProductSummaryDto;
-import com.back.domain.order.order.repository.OrderItemRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
-import org.springframework.transaction.annotation.Transactional;
-
 import java.util.Optional;
-
-import java.util.List;
 import java.util.Set;
 
 @Service
@@ -42,7 +32,7 @@ public class OrderService {
             OrderStatus.PAID
     );
 
-    public Order create(String email, String shippingAddress, String shippingCode, @Valid List<OrderCreateRequestDto.OrderItemRequest> items) {
+    public Order create(String email, String shippingAddress, String shippingCode, List<OrderCreateRequestDto.OrderItemRequest> items) {
         Customer customer = getOrCreateCustomer(email);
         List<OrderItem> orderItems = createOrderItems(items);
         Order order = Order.create(

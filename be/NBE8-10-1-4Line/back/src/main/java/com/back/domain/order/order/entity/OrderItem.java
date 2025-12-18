@@ -31,4 +31,8 @@ public class OrderItem extends BaseEntity {
         item.quantity = quantity;
         return item;
     }
+
+    protected void assignOrder(Order order) {
+        this.order = order;
+    }
 }
