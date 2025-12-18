@@ -92,11 +92,25 @@ public class OrderController {
 
         OrderDto updatedOrder = orderService.updateOrderShippingInfo(orderId, request);
 
-        // 팀의 응답 규격인 RsData로 감싸서 반환
         return new RsData<>(
                 "200-1",
                 "%d번 주문의 배송 정보가 수정되었습니다.".formatted(orderId),
                 updatedOrder
         );
     }
+
+    @Operation(summary = "주문 상태 변경", description = "주문의 상태를 변경하고 고객에게 알림 메일을 보냅니다.")
+    @PatchMapping("/{orderId}/status")
+    public RsData<Void> updateOrderStatus(
+            @PathVariable Long orderId,
+            @RequestParam com.back.domain.order.order.entity.OrderStatus status) {
+
+        orderService.updateOrderStatus(orderId, status);
+
+        return new RsData<>(
+                "200-1",
+                "주문 상태가 %s로 변경되었으며 알림 메일이 발송되었습니다.".formatted(status)
+        );
+    }
+
 }
