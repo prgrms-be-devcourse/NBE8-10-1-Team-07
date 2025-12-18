@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import { orderCreateStyles as s } from "@/app/style/orderCreate";
 
 type Summary = {
   productId: number;
@@ -16,8 +17,14 @@ type RsData<T> = {
   data: T;
 };
 
-// ✅ 백엔드 주소 (환경변수 있으면 그걸 사용)
-const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8080";
+const API_BASE =
+  process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8080";
+
+async function apiGet<T>(url: string) {
+  const res = await fetch(url, { cache: "no-store" });
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  return (await res.json()) as RsData<T>;
+}
 
 export default function OrdersPage() {
   const router = useRouter();
@@ -25,30 +32,27 @@ export default function OrdersPage() {
   const [email, setEmail] = useState("");
   const [summaries, setSummaries] = useState<Summary[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     const run = async () => {
       try {
-        const savedEmail = sessionStorage.getItem("orderEmail");
+        setLoading(true);
+        setError(null);
 
-        // ✅ 이메일이 없으면 search로 보내기
+        const savedEmail = sessionStorage.getItem("orderEmail");
         if (!savedEmail) {
-          setError("이메일 정보가 없습니다. 이메일 확인 페이지로 이동해주세요.");
+          setError("이메일 정보가 없습니다. 주문 조회에서 이메일을 입력해주세요.");
           return;
         }
 
         setEmail(savedEmail);
 
-        const res = await fetch(
-          `${API_BASE}/api/orders/summary?email=${encodeURIComponent(savedEmail)}`,
-          { cache: "no-store" }
+        const res = await apiGet<Summary[]>(
+          `${API_BASE}/api/orders/summary?email=${encodeURIComponent(savedEmail)}`
         );
 
-        if (!res.ok) throw new Error(`요약 조회 실패 (HTTP ${res.status})`);
-
-        const json: RsData<Summary[]> = await res.json();
-        setSummaries(json.data ?? []);
+        setSummaries(res.data ?? []);
       } catch (e: any) {
         setError(e?.message ?? "알 수 없는 오류가 발생했습니다.");
       } finally {
@@ -59,63 +63,165 @@ export default function OrdersPage() {
     run();
   }, []);
 
+  const totals = useMemo(() => {
+    const totalKinds = summaries.length;
+    const totalQty = summaries.reduce(
+      (acc, x) => acc + Number(x.totalQuantity || 0),
+      0
+    );
+    const totalAmount = summaries.reduce(
+      (acc, x) => acc + Number(x.totalAmount || 0),
+      0
+    );
+    return { totalKinds, totalQty, totalAmount };
+  }, [summaries]);
+
   if (loading) {
-    return <div className="min-h-screen bg-gray-100 p-6">로딩중...</div>;
+    return (
+      <div className={s.page}>
+        <div className={s.container}>
+          <div className={s.card}>
+            <div className={s.cardHeader}>주문 내역</div>
+            <div className={s.empty}>로딩중...</div>
+          </div>
+        </div>
+      </div>
+    );
   }
 
+  // ✅ 에러 상태
+  if (error) {
+    return (
+      <div className={s.page}>
+        <div className={s.container}>
+          {/* ✅ 오른쪽 상단 버튼(이동) */}
+          <div className={s.headerRow}>
+            <div>
+              <h1 className={s.title}>주문 내역</h1>
+              {email && (
+                <div className="mt-1 text-sm text-gray-500">{email}</div>
+              )}
+            </div>
+
+            <button
+              className={s.btnSearch}
+              onClick={() => router.push("/orders/search")}
+            >
+              다른 이메일로 조회
+            </button>
+          </div>
+
+          <div className={s.card}>
+            <div className={s.cardHeader}>안내</div>
+            <div className="p-4">
+              <div className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+                {error}
+              </div>
+
+              <div className="mt-4">
+                <button
+                  className={s.btnSearch}
+                  onClick={() => router.push("/orders/search")}
+                >
+                  주문 조회로 이동
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // ✅ 정상 화면
   return (
-    <div className="min-h-screen bg-gray-100 p-6">
-      <div className="mx-auto max-w-3xl rounded-xl bg-white p-6 shadow-sm">
-        <div className="mb-4 flex items-center justify-between">
+    <div className={s.page}>
+      <div className={s.container}>
+        {/* ✅ 헤더: 오른쪽 상단에 "다른 이메일로 조회" */}
+        <div className={s.headerRow}>
           <div>
-            <h1 className="text-xl font-bold text-gray-900">주문 내역</h1>
+            <h1 className={s.title}>주문 내역</h1>
             {email && <div className="mt-1 text-sm text-gray-500">{email}</div>}
           </div>
 
           <button
-            className="rounded-md border border-gray-900 px-4 py-2 text-sm font-semibold text-gray-900 hover:bg-gray-900 hover:text-white"
+            className={s.btnSearch}
             onClick={() => router.push("/orders/search")}
           >
-            이메일 다시 입력
+            다른 이메일로 조회
           </button>
         </div>
 
-        {error ? (
-          <div className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
-            {error}
-            <div className="mt-3">
-              <button
-                className="rounded-md bg-gray-900 px-4 py-2 text-sm font-semibold text-white hover:bg-black"
-                onClick={() => router.push("/orders/search")}
-              >
-                이메일 확인하러 가기
-              </button>
+        {/* ✅ 세로 스택 레이아웃 */}
+        <div className="space-y-4">
+          {/* 1) 주문 내역 카드(위) */}
+          <section className={s.card}>
+            <div className={s.cardHeader}>상품별 주문 요약</div>
+
+            {summaries.length === 0 ? (
+              <div className={s.empty}>주문 내역이 없습니다.</div>
+            ) : (
+              <div className={s.list}>
+                {summaries.map((item) => (
+                  <button
+                    key={item.productId}
+                    className={`${s.productRow} w-full text-left hover:bg-gray-50`}
+                  >
+                    <div className={s.thumb} />
+
+                    <div className={s.productInfo}>
+                      <div className={s.productName}>{item.productName}</div>
+
+                      <div className="mt-1 text-xs text-gray-500">
+                        총 수량 {Number(item.totalQuantity).toLocaleString()}개
+                      </div>
+                    </div>
+
+                    <div className="text-sm font-bold text-gray-900">
+                      {Number(item.totalAmount).toLocaleString()}원
+                    </div>
+                  </button>
+                ))}
+              </div>
+            )}
+          </section>
+
+          {/* 2) Summary 카드(아래) */}
+          <section className={s.card}>
+            <div className={s.cardHeader}>Summary</div>
+
+            <div className="p-4">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                <div className="rounded-lg border border-gray-200 p-3">
+                  <div className="text-xs font-semibold text-gray-600">
+                    상품 종류
+                  </div>
+                  <div className="mt-1 text-lg font-bold text-gray-900">
+                    {totals.totalKinds.toLocaleString()}개
+                  </div>
+                </div>
+
+                <div className="rounded-lg border border-gray-200 p-3">
+                  <div className="text-xs font-semibold text-gray-600">
+                    총 수량
+                  </div>
+                  <div className="mt-1 text-lg font-bold text-gray-900">
+                    {totals.totalQty.toLocaleString()}개
+                  </div>
+                </div>
+
+                <div className="rounded-lg border border-gray-200 p-3">
+                  <div className="text-xs font-semibold text-gray-600">
+                    총 결제 금액
+                  </div>
+                  <div className="mt-1 text-lg font-bold text-gray-900">
+                    {totals.totalAmount.toLocaleString()}원
+                  </div>
+                </div>
+              </div>
             </div>
-          </div>
-        ) : summaries.length === 0 ? (
-          <div className="text-sm text-gray-500">주문 내역이 없습니다.</div>
-        ) : (
-          <ul className="divide-y">
-            {summaries.map((s) => (
-              <li
-                key={s.productId}
-                className="flex items-center justify-between py-3"
-              >
-                <div className="min-w-0">
-                  <div className="truncate font-semibold text-gray-900">
-                    {s.productName}
-                  </div>
-                  <div className="text-xs text-gray-500">
-                    총 수량 {s.totalQuantity}개
-                  </div>
-                </div>
-                <div className="font-bold text-gray-900">
-                  {Number(s.totalAmount).toLocaleString()}원
-                </div>
-              </li>
-            ))}
-          </ul>
-        )}
+          </section>
+        </div>
       </div>
     </div>
   );

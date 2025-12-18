@@ -49,7 +49,7 @@ export const orderCreateStyles = {
 
   formBox: "px-4 pb-4 space-y-3",
   label: "block text-xs font-semibold text-gray-700",
-  input: `mt-1 ${inputBase} disabled:opacity-100 `,
+  input: `mt-1 ${inputBase} `,
 
   totalRow: "flex items-center justify-between px-4 py-3 border-t border-gray-200",
   totalLabel: "text-sm font-semibold text-gray-700",
