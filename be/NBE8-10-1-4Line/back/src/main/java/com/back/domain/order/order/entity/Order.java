@@ -4,6 +4,7 @@ import com.back.domain.customer.customer.entity.Customer;
 import com.back.global.jpa.entity.BaseEntity;
 import jakarta.persistence.*;
 import lombok.Getter;
+import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 import java.time.LocalDateTime;
@@ -15,6 +16,7 @@ import static jakarta.persistence.FetchType.LAZY;
 @Getter
 @Setter
 @Entity
+@NoArgsConstructor
 @Table(name = "orders")
 public class Order extends BaseEntity {
 
@@ -40,4 +42,31 @@ public class Order extends BaseEntity {
 
     @OneToMany(mappedBy = "order", fetch = LAZY, cascade = CascadeType.ALL, orphanRemoval = true)
     private List<OrderItem> orderItems = new ArrayList<>();
+
+    public void addOrderItem(OrderItem orderItem) {
+        this.orderItems.add(orderItem);
+        orderItem.assignOrder(this);
+    }
+
+    public static Order create(Customer customer, String shippingAddress, String shippingCode, List<OrderItem> orderItems) {
+        Order order = new Order();
+        order.customer = customer;
+        order.orderTime = LocalDateTime.now();
+        order.orderStatus = OrderStatus.ORDERED;
+        order.shippingAddress = shippingAddress;
+        order.shippingCode = shippingCode;
+
+        for (OrderItem item : orderItems) {
+            order.addOrderItem(item);
+        }
+
+        order.calculateTotalAmount();
+        return order;
+    }
+
+    private void calculateTotalAmount() {
+        this.totalAmount = this.orderItems.stream()
+                .mapToInt(item -> item.getProduct().getPrice() * item.getQuantity())
+                .sum();
+    }
 }
