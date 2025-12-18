@@ -66,8 +66,7 @@ public class BaseInitData {
         String addr2 = "부산시 해운대구 우동 456";
         String code2 = "48045";
 
-        // 생성할 주문 정보들을 리스트로 구성
-        List<Order> ordersToSave = List.of(
+        List<Order> orders = List.of(
                 Order.create(c1, addr1, code1, List.of(OrderItem.create(p1, 1), OrderItem.create(p2, 2))),
                 Order.create(c1, addr1, code1, List.of(OrderItem.create(p3, 1))),
                 Order.create(c2, addr1, code1, List.of(OrderItem.create(p1, 1), OrderItem.create(p2, 2))),
@@ -78,18 +77,7 @@ public class BaseInitData {
                 Order.create(c2, addr2, code2, List.of(OrderItem.create(p2, 1), OrderItem.create(p3, 3)))
         );
 
-        // 루프를 돌며 3초 간격으로 저장
-        for (int i = 0; i < ordersToSave.size(); i++) {
-            orderRepository.save(ordersToSave.get(i));
-
-            // 마지막 데이터가 아닐 때만 10초 대기
-            if (i < ordersToSave.size() - 1) {
-                try {
-                    Thread.sleep(1000);
-                } catch (InterruptedException e) {
-                    Thread.currentThread().interrupt();
-                }
-            }
-        }
+        // 3. 실제 DB 저장
+        orderRepository.saveAll(orders);
     }
 }
