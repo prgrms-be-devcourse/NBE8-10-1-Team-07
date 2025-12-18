@@ -10,6 +10,7 @@ import com.back.domain.order.order.repository.OrderItemRepository;
 import com.back.domain.order.order.repository.OrderRepository;
 import com.back.domain.product.product.entity.Product;
 import com.back.domain.product.product.repository.ProductRepository;
+import com.back.global.email.EmailService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -26,6 +27,7 @@ public class OrderService {
     private final CustomerRepository customerRepository;
     private final ProductRepository productRepository;
     private final OrderItemRepository orderItemRepository;
+    private final EmailService emailService;
 
     private static final Set<OrderStatus> EDITABLE_STATUSES = Set.of(
             OrderStatus.ORDERED,
@@ -44,7 +46,6 @@ public class OrderService {
         return orderRepository.save(order);
     }
 
-    // 헬퍼 함수
     private Customer getOrCreateCustomer(String email) {
         return customerRepository.findByEmail(email)
                 .orElseGet(() -> {
@@ -100,5 +101,15 @@ public class OrderService {
         order.setShippingCode(request.getShippingCode());
 
         return new OrderDto(order);
+    }
+
+    public void updateOrderStatus(Long orderId, OrderStatus newStatus) {
+        Order order = orderRepository.findById(orderId)
+                .orElseThrow(() -> new IllegalArgumentException("주문 없음"));
+
+        order.setOrderStatus(newStatus);
+
+        // 이메일 발송 서비스 호출 (비동기)
+        emailService.sendStatusEmail(order.getCustomer().getEmail(), newStatus.name());
     }
 }
