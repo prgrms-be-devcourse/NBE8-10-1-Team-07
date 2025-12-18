@@ -214,7 +214,9 @@ export default function OrderEditPage() {
                 shippingAddress: shippingAddress.trim(),
                 shippingCode: shippingCode.trim(),
             });
-
+            
+            sessionStorage.setItem("orderNeedRefresh", "1");
+            
             setSuccessOpen(true);
         } catch (e: any) {
             setErrorMsg(e?.message ?? "수정 실패");
