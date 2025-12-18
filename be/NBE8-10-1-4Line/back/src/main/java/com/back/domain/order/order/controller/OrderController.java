@@ -12,7 +12,6 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -66,12 +65,17 @@ public class OrderController {
 
     @Operation(summary = "주문 배송 정보 수정", description = "주소와 우편번호 수정")
     @PutMapping("/{orderId}")
-    public ResponseEntity<OrderDto> updateOrderShippingInfo(
+    public RsData<OrderDto> updateOrderShippingInfo(
             @PathVariable("orderId") Long orderId,
             @Valid @RequestBody OrderUpdateDto request) {
 
         OrderDto updatedOrder = orderService.updateOrderShippingInfo(orderId, request);
 
-        return ResponseEntity.ok(updatedOrder);
+        // 팀의 응답 규격인 RsData로 감싸서 반환
+        return new RsData<>(
+                "200-1",
+                "%d번 주문의 배송 정보가 수정되었습니다.".formatted(orderId),
+                updatedOrder
+        );
     }
 }
