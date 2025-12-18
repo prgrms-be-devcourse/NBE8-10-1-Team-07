@@ -10,7 +10,7 @@ import org.springframework.stereotype.Component;
 public class OrderBatchScheduler {
     private final OrderBatchService orderBatchService;
 
-    //테스트용: @Scheduled(cron = "0 */1 * * * *", zone = "Asia/Seoul")
+    // @Scheduled(cron = "0 */1 * * * *", zone = "Asia/Seoul") // test
     @Scheduled(cron = "0 0 14 * * *", zone = "Asia/Seoul")
     public void runOrderBatch() {
         orderBatchService.processDailyOrderBatch();

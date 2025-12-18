@@ -1,5 +1,7 @@
 package com.back.domain.order.order.util;
 
+import com.back.domain.order.order.dto.OrderDto;
+import com.back.domain.order.order.dto.OrderItemDto;
 import com.back.domain.order.order.entity.Order;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
@@ -9,18 +11,21 @@ import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
-
 @Component
-@Slf4j // log 객체 자동 생성
+@Slf4j
 public class OrderFileHandler {
 
     public void createOrderCsv(List<Order> orders) {
-        Map<String, List<Order>> groupedOrders = orders.stream()
-                .collect(Collectors.groupingBy(order -> order.getCustomer().getEmail()));
+        // 이메일로 그룹핑 -> 주소로 재그룹핑
+        Map<String, Map<String, List<Order>>> groupedOrders = orders.stream()
+                .collect(Collectors.groupingBy(order -> order.getCustomer().getEmail(),
+                        Collectors.groupingBy(Order::getShippingAddress)));
 
+        // outputs에 저장 -> 이후 필요 시 수정 요청 요망
         LocalDateTime now = LocalDateTime.now();
         String dirPath = String.format("outputs/%d/%02d/", now.getYear(), now.getMonthValue());
         String fileName = String.format("order_report_%s.csv", now.format(DateTimeFormatter.ofPattern("yyyyMMdd_HHmm")));
@@ -31,41 +36,47 @@ public class OrderFileHandler {
 
             try (PrintWriter writer = new PrintWriter(new OutputStreamWriter(new FileOutputStream(file), "MS949"))) {
 
-                writer.println("No,이메일,주소,우편번호,총결제금액,주문상품상세,최종주문시간");
+                writer.println("No,주문ID,이메일,주소,우편번호,상품명,수량,단가,소계,주문시간");
 
-                int no = 1;
-                for (String email : groupedOrders.keySet()) {
-                    List<Order> userOrders = groupedOrders.get(email);
+                int rowNo = 1;
 
-                    // 그룹화된 데이터 합산
-                    int totalAmount = userOrders.stream().mapToInt(Order::getTotalAmount).sum();
-                    String shippingAddress = userOrders.getFirst().getShippingAddress();
-                    String shippingCode = userOrders.getFirst().getShippingCode();
-                    LocalDateTime lastOrderTime = userOrders.stream()
-                            .map(Order::getOrderTime)
-                            .max(LocalDateTime::compareTo).orElse(now);
+                for (Map.Entry<String, Map<String, List<Order>>> emailEntry : groupedOrders.entrySet()) {
+                    String email = emailEntry.getKey();
+                    Map<String, List<Order>> addressMap = emailEntry.getValue();
 
-                    // 상품 정보 합치기 (예: "columbia(1개) | 에티오피아(3개)")
-                    String productSummary = userOrders.stream()
-                            .flatMap(o -> o.getOrderItems().stream())
-                            .map(item -> String.format("%s(%d개)", item.getProduct().getName(), item.getQuantity()))
-                            .collect(Collectors.joining(" | "));
+                    for (Map.Entry<String, List<Order>> addressEntry : addressMap.entrySet()) {
+                        String address = addressEntry.getKey();
 
-                    writer.printf("%d,\"%s\",\"%s\",\"%s\",%d,\"%s\",%s%n",
-                            no++,
-                            email,
-                            shippingAddress,
-                            shippingCode,
-                            totalAmount,
-                            productSummary,
-                            lastOrderTime
-                    );
+                        // 주소 그룹 내에서 주문 시간순 정렬
+                        List<Order> sortedOrders = addressEntry.getValue().stream()
+                                .sorted(Comparator.comparing(Order::getOrderTime))
+                                .toList();
+
+                        for (Order order : sortedOrders) {
+                            OrderDto orderDto = new OrderDto(order); // DTO로 변환해 사용
+
+                            for (OrderItemDto itemDto : orderDto.orderItems()) {
+                                writer.printf("%d,%d,\"%s\",\"%s\",\"%s\",\"%s\",%d,%d,%d,%s%n",
+                                        rowNo++,
+                                        orderDto.id(),
+                                        email,
+                                        address,
+                                        orderDto.shippingCode(),
+                                        itemDto.productName(),
+                                        itemDto.quantity(),
+                                        itemDto.pricePerItem(),
+                                        itemDto.subTotal(),
+                                        orderDto.orderTime().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"))
+                                );
+                            }
+                        }
+                    }
                 }
                 log.info("CSV 생성 완료: {}", file.getAbsolutePath());
             }
         } catch (IOException e) {
-            log.error("CSV 파일 생성 중 에러", e);
-            throw new RuntimeException(e);
+            log.error("CSV 파일 생성 중 에러 발생", e);
+            throw new RuntimeException("배치 파일 생성 실패", e);
         }
     }
 }
