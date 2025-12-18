@@ -1,8 +1,13 @@
+import { inputBase } from "./common";
+
 export const orderCreateStyles = {
   page: "min-h-screen bg-gray-100",
   container: "mx-auto max-w-6xl px-4 py-6",
-  headerRow: "mb-4",
+  headerRow: "mb-4 flex items-center justify-between",
   title: "text-xl font-bold text-gray-900",
+
+  btnSearch:
+    "rounded-md border border-gray-900 px-4 py-2 text-sm font-semibold text-gray-900 hover:bg-gray-900 hover:text-white",
 
   grid: "grid grid-cols-1 gap-4 md:grid-cols-10",
   leftCol: "md:col-span-7",
@@ -44,13 +49,12 @@ export const orderCreateStyles = {
 
   formBox: "px-4 pb-4 space-y-3",
   label: "block text-xs font-semibold text-gray-700",
-  input:
-    "mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm outline-none focus:border-gray-900 focus:ring-1 focus:ring-gray-900",
+  input: `mt-1 ${inputBase} disabled:opacity-100 `,
 
   totalRow: "flex items-center justify-between px-4 py-3 border-t border-gray-200",
   totalLabel: "text-sm font-semibold text-gray-700",
   totalValue: "text-sm font-bold text-gray-900",
 
-btnCheckout:
-  "mx-4 mb-4 w-[calc(100%-2rem)] rounded-md bg-gray-900 px-4 py-3 text-sm font-semibold text-white hover:bg-black disabled:opacity-40 disabled:cursor-not-allowed",
+  btnCheckout:
+    "mx-4 mb-4 w-[calc(100%-2rem)] rounded-md bg-gray-900 px-4 py-3 text-sm font-semibold text-white hover:bg-black disabled:opacity-40 disabled:cursor-not-allowed",
 } as const;

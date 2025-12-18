@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import { orderCreateStyles as s } from "@/app/style/orderCreate";
 
 type Product = {
@@ -24,6 +25,8 @@ const DUMMY_PRODUCTS: Product[] = [
 ];
 
 export default function OrderCreatePage() {
+  const router = useRouter();
+
   const [cart, setCart] = useState<CartItem[]>([]);
 
   // 배송 정보 (API 연결 전 UI만)
@@ -40,7 +43,10 @@ export default function OrderCreatePage() {
     setCart((prev) => {
       const found = prev.find((x) => x.productId === p.id);
       if (!found) {
-        return [...prev, { productId: p.id, name: p.name, price: p.price, quantity: 1 }];
+        return [
+          ...prev,
+          { productId: p.id, name: p.name, price: p.price, quantity: 1 },
+        ];
       }
       return prev.map((x) =>
         x.productId === p.id ? { ...x, quantity: x.quantity + 1 } : x
@@ -71,7 +77,6 @@ export default function OrderCreatePage() {
   };
 
   const onCheckout = () => {
-    // TODO: 주문 생성 API 머지 후 fetch 연결
     const payload = {
       email,
       shippingAddress,
@@ -90,8 +95,17 @@ export default function OrderCreatePage() {
   return (
     <div className={s.page}>
       <div className={s.container}>
+        {/* 🔹 상단 헤더 */}
         <div className={s.headerRow}>
           <h1 className={s.title}>주문 생성</h1>
+
+          {/* ✅ 우측 상단 주문 조회 버튼 */}
+          <button
+            className={s.btnSearch}
+            onClick={() => router.push("/orders/search")}
+          >
+            주문 조회
+          </button>
         </div>
 
         <div className={s.grid}>
@@ -137,11 +151,17 @@ export default function OrderCreatePage() {
                     </div>
 
                     <div className={s.qtyBox}>
-                      <button className={s.qtyBtn} onClick={() => dec(item.productId)}>
+                      <button
+                        className={s.qtyBtn}
+                        onClick={() => dec(item.productId)}
+                      >
                         -
                       </button>
                       <div className={s.qtyValue}>{item.quantity}</div>
-                      <button className={s.qtyBtn} onClick={() => inc(item.productId)}>
+                      <button
+                        className={s.qtyBtn}
+                        onClick={() => inc(item.productId)}
+                      >
                         +
                       </button>
                     </div>
@@ -157,7 +177,7 @@ export default function OrderCreatePage() {
               </div>
             )}
 
-            {/* 배송 정보 입력 박스 */}
+            {/* 배송 정보 입력 */}
             <div className={s.formBox}>
               <label className={s.label}>
                 이메일
