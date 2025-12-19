@@ -33,6 +33,7 @@ public class EmailService {
 
         message.setText(content);
 
+
         mailSender.send(message);
     }
 }
