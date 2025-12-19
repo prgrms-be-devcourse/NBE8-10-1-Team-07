@@ -348,3 +348,47 @@ function SuccessModal({
     </div>
   );
 }
+
+function Modal({
+  open,
+  title,
+  message,
+  onClose,
+  actions,
+}: {
+  open: boolean;
+  title: string;
+  message: string;
+  onClose: () => void;
+  actions?: React.ReactNode;
+}) {
+  if (!open) return null;
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center"
+      role="dialog"
+      aria-modal="true"
+      onMouseDown={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+    >
+      <div className="absolute inset-0 bg-black/40" />
+      <div className="relative z-10 w-[92%] max-w-sm rounded-xl border border-gray-200 bg-white p-5 shadow-lg">
+        <div className="text-base font-bold text-gray-900">{title}</div>
+        <div className="mt-2 text-sm text-gray-600 whitespace-pre-line">{message}</div>
+
+        <div className="mt-4 flex justify-end gap-2">
+          {actions ?? (
+            <button
+              className="rounded-md border border-gray-900 px-4 py-2 text-sm font-semibold text-gray-900 hover:bg-gray-900 hover:text-white"
+              onClick={onClose}
+            >
+              확인
+            </button>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}

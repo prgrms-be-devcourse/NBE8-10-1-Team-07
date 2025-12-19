@@ -59,8 +59,22 @@ async function apiGet<T>(url: string) {
 
 async function apiDelete<T>(url: string) {
   const res = await fetch(url, { method: "DELETE" });
-  if (!res.ok) throw new Error(`HTTP ${res.status}`);
-  return (await res.json()) as RsData<T>;
+
+  // ✅ 성공/실패 상관없이 바디를 읽어봄 (없을 수도 있으니 catch)
+  const body = await res.json().catch(() => null) as RsData<T> | null;
+
+  if (!res.ok) {
+    // ✅ 백엔드 RsData.msg 우선 노출
+    const msg = body?.msg ?? `HTTP ${res.status}`;
+    throw new Error(msg);
+  }
+
+  // ✅ DELETE가 204(No Content)로 올 수도 있음
+  if (res.status === 204) {
+    return { resultCode: "200-0", msg: "삭제 완료", data: null } as RsData<T>;
+  }
+
+  return (body ?? ({ resultCode: "200-0", msg: "삭제 완료", data: null } as RsData<T>));
 }
 
 /* =======================
@@ -91,6 +105,20 @@ const ORDER_STATUS_LABEL: Record<OrderStatus, string> = {
 ======================= */
 export default function OrdersPage() {
   const router = useRouter();
+
+  const [modalOpen, setModalOpen] = useState(false);
+  const [modalTitle, setModalTitle] = useState("");
+  const [modalMessage, setModalMessage] = useState("");
+  const [modalActions, setModalActions] = useState<React.ReactNode>(null);
+
+  const openModal = (title: string, message: string, actions?: React.ReactNode) => {
+    setModalTitle(title);
+    setModalMessage(message);
+    setModalActions(actions ?? null);
+    setModalOpen(true);
+  };
+
+  const closeModal = () => setModalOpen(false);
 
   const [email, setEmail] = useState("");
   const [summaries, setSummaries] = useState<Summary[]>([]);
@@ -233,39 +261,57 @@ export default function OrdersPage() {
      삭제 (상세 + 요약 + Summary까지 갱신)
   ======================= */
   const onDeleteOrder = async (productId: number, orderId: number) => {
-    if (!confirm(`${orderId}번 주문을 삭제할까요?`)) return;
-
-    try {
-      await apiDelete(`${API_BASE}/api/orders/${orderId}`);
-
-      // 1) 현재 열려있는 상세 UI에서 즉시 row 제거 (UX 빠르게)
-      setDetailsByProductId((prev) => {
-        const next = { ...prev };
-        const filtered = (next[productId] ?? []).filter((d) => d.orderId !== orderId);
-        next[productId] = filtered;
-        return next;
-      });
-
-      // 2) 요약(summaries) 재조회 → 상단 요약/하단 Summary 값까지 정확히 맞춤
-      await fetchSummaries(email);
-
-      // 3) (선택) 해당 상품 상세가 완전히 비면 접고 캐시 정리
-      setDetailsByProductId((prev) => {
-        const list = prev[productId] ?? [];
-        if (list.length > 0) return prev;
-
-        const next = { ...prev };
-        delete next[productId];
-        return next;
-      });
-
-      if ((detailsByProductId[productId] ?? []).length <= 1) {
-        // 방금 삭제로 마지막 1개가 없어졌을 가능성
-        setOpenProductId((cur) => (cur === productId ? null : cur));
-      }
-    } catch (e: any) {
-      alert(e?.message ?? "삭제 실패");
-    }
+    openModal(
+      "주문 삭제",
+      `${orderId}번 주문을 삭제할까요?`,
+      <>
+        <button
+          className="rounded-md border border-gray-300 px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-100"
+          onClick={closeModal}
+        >
+          취소
+        </button>
+        <button
+          className="rounded-md border border-gray-900 px-4 py-2 text-sm font-semibold text-gray-900 hover:bg-gray-900 hover:text-white"
+          onClick={async () => {
+            closeModal();
+            try {
+              await apiDelete(`${API_BASE}/api/orders/${orderId}`);
+  
+              // ✅ 기존 로직 그대로
+              setDetailsByProductId((prev) => {
+                const next = { ...prev };
+                const filtered = (next[productId] ?? []).filter((d) => d.orderId !== orderId);
+                next[productId] = filtered;
+                return next;
+              });
+  
+              await fetchSummaries(email);
+  
+              setDetailsByProductId((prev) => {
+                const list = prev[productId] ?? [];
+                if (list.length > 0) return prev;
+                const next = { ...prev };
+                delete next[productId];
+                return next;
+              });
+  
+              if ((detailsByProductId[productId] ?? []).length <= 1) {
+                setOpenProductId((cur) => (cur === productId ? null : cur));
+              }
+  
+              // ✅ 성공 모달
+              openModal("삭제 완료", "주문이 삭제되었습니다.");
+            } catch (e: any) {
+              // ✅ 실패 모달 (백엔드 msg 그대로)
+              openModal("삭제 실패", e?.message ?? "삭제 실패");
+            }
+          }}
+        >
+          확인
+        </button>
+      </>
+    );
   };
 
   /* =======================
@@ -446,6 +492,58 @@ export default function OrdersPage() {
             </div>
           </div>
         </section>
+      </div>
+      {/* ✅ 여기! container 닫고 page 닫기 전에 */}
+    <Modal
+      open={modalOpen}
+      title={modalTitle}
+      message={modalMessage}
+      onClose={closeModal}
+      actions={modalActions ?? undefined}
+    />
+    </div>
+  );
+}
+
+function Modal({
+  open,
+  title,
+  message,
+  onClose,
+  actions,
+}: {
+  open: boolean;
+  title: string;
+  message: string;
+  onClose: () => void;
+  actions?: React.ReactNode;
+}) {
+  if (!open) return null;
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center"
+      role="dialog"
+      aria-modal="true"
+      onMouseDown={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+    >
+      <div className="absolute inset-0 bg-black/40" />
+      <div className="relative z-10 w-[92%] max-w-sm rounded-xl border border-gray-200 bg-white p-5 shadow-lg">
+        <div className="text-base font-bold text-gray-900">{title}</div>
+        <div className="mt-2 text-sm text-gray-600 whitespace-pre-line">{message}</div>
+
+        <div className="mt-4 flex justify-end gap-2">
+          {actions ?? (
+            <button
+              className="rounded-md border border-gray-900 px-4 py-2 text-sm font-semibold text-gray-900 hover:bg-gray-900 hover:text-white"
+              onClick={onClose}
+            >
+              확인
+            </button>
+          )}
+        </div>
       </div>
     </div>
   );
