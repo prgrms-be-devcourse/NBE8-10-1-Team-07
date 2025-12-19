@@ -1,5 +1,6 @@
 "use client";
 
+import OrdersHeader from "@/app/_components/OrdersHeader";
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 
@@ -307,19 +308,13 @@ export default function OrdersPage() {
   return (
     <div className={s.page}>
       <div className={s.container}>
-        <div className={s.headerRow}>
-          <div>
-            <h1 className={s.title}>주문 내역</h1>
-            <div className={s.emailText}>{email}</div>
-          </div>
-
-          <button
-            className={s.btnSearch}
-            onClick={() => router.push("/orders/search")}
-          >
-            다른 이메일로 조회
-          </button>
-        </div>
+        <OrdersHeader
+          headerRowClassName={s.headerRow}
+          subtitle={email}
+          rightLabel="다른 이메일로 조회"
+          onRightClick={() => router.push("/orders/search")}
+          btnClassName={s.btnSearch}
+        />
 
         <section className={s.card}>
           <div className={s.cardHeader}>상품별 주문 요약</div>

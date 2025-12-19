@@ -6,6 +6,8 @@ export const ordersSearchStyles = {
 
   content: "mt-16 ml-40",
 
+  headerRow: "mb-2 flex items-center justify-between",
+  
   title: "text-xl font-bold text-gray-900 text-left",
   desc: "mt-1 mb-6 text-sm text-gray-500 text-left",
 

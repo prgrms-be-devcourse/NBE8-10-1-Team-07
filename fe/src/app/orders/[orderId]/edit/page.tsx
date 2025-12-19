@@ -1,19 +1,15 @@
 "use client";
 
+import OrdersHeader from "@/app/_components/OrdersHeader";
 import { useEffect, useMemo, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 
 import { orderCreateStyles } from "@/app/style/orderCreate";
 import { ordersEditStyles } from "@/app/style/ordersEdit";
+import { apiGet, apiPut } from "@/lib/api";
 
 // 공용 + edit 전용 합쳐서 s 하나로 사용
 const s = { ...orderCreateStyles, ...ordersEditStyles } as const;
-
-type RsData<T> = {
-    resultCode: string;
-    msg: string;
-    data: T;
-};
 
 type Summary = {
     productId: number;
@@ -51,36 +47,6 @@ type EditItem = {
 
 const API_BASE =
     process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8080";
-
-async function apiGet<T>(url: string) {
-    const res = await fetch(url, { cache: "no-store" });
-    if (!res.ok) {
-        let text = "";
-        try {
-            text = await res.text();
-        } catch { }
-        throw new Error(`HTTP ${res.status}${text ? ` - ${text}` : ""}`);
-    }
-    return (await res.json()) as RsData<T>;
-}
-
-async function apiPut<T>(url: string, body: unknown) {
-    const res = await fetch(url, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
-    });
-
-    if (!res.ok) {
-        let text = "";
-        try {
-            text = await res.text();
-        } catch { }
-        throw new Error(`HTTP ${res.status}${text ? ` - ${text}` : ""}`);
-    }
-
-    return (await res.json()) as RsData<T>;
-}
 
 export default function OrderEditPage() {
     const router = useRouter();
@@ -133,13 +99,13 @@ export default function OrderEditPage() {
 
                 // 2) 각 productId에 대해 detail 로드 → orderId 매칭되는 row만 수집
                 const detailResults = await Promise.all(
-                    summaries.map(async (s) => {
+                    summaries.map(async (x) => {
                         const dRes = await apiGet<Detail[]>(
-                            `${API_BASE}/api/orders/summary/${s.productId}?email=${encodeURIComponent(
+                            `${API_BASE}/api/orders/summary/${x.productId}?email=${encodeURIComponent(
                                 savedEmail
                             )}`
                         );
-                        return { productId: s.productId, details: dRes.data ?? [] };
+                        return { productId: x.productId, details: dRes.data ?? [] };
                     })
                 );
 
@@ -214,9 +180,8 @@ export default function OrderEditPage() {
                 shippingAddress: shippingAddress.trim(),
                 shippingCode: shippingCode.trim(),
             });
-            
+
             sessionStorage.setItem("orderNeedRefresh", "1");
-            
             setSuccessOpen(true);
         } catch (e: any) {
             setErrorMsg(e?.message ?? "수정 실패");
@@ -233,13 +198,12 @@ export default function OrderEditPage() {
     return (
         <div className={s.page}>
             <div className={s.container}>
-                <div className={s.headerRow}>
-                    <h1 className={s.title}>주문 수정</h1>
-
-                    <button className={s.btnSearch} onClick={() => router.push("/orders")}>
-                        주문 내역
-                    </button>
-                </div>
+                <OrdersHeader
+                    headerRowClassName={s.headerRow}
+                    rightLabel="주문 내역"
+                    onRightClick={() => router.push("/orders")}
+                    btnClassName={s.btnSearch}
+                />
 
                 {loading ? (
                     <div className={s.card}>
@@ -265,7 +229,6 @@ export default function OrderEditPage() {
                         <section className={`${s.card} ${s.leftEdit} flex flex-col h-full`}>
                             <div className={s.cardHeader}>주문 상품</div>
 
-                            {/* ✅ 상품 목록 영역: 남는 공간을 모두 차지 */}
                             {items.length === 0 ? (
                                 <div className={`${s.empty} flex-1`}>상품 정보가 없습니다.</div>
                             ) : (
@@ -288,7 +251,6 @@ export default function OrderEditPage() {
                                 </div>
                             )}
 
-                            {/* ✅ 항상 흰색 카드(섹션) 내부 맨 아래 */}
                             <div className={s.totalRow}>
                                 <div className={s.totalLabel}>총 금액</div>
                                 <div className={s.totalValue}>{totalAmount.toLocaleString()}원</div>
@@ -300,7 +262,6 @@ export default function OrderEditPage() {
                             <div className={s.cardHeader}>배송 정보 수정</div>
 
                             <div className={s.formBody}>
-                                {/* 이메일 고정값 */}
                                 <label className={s.label}>
                                     이메일
                                     <input
@@ -335,11 +296,7 @@ export default function OrderEditPage() {
 
                                 {errorMsg && <div className={s.alertError}>{errorMsg}</div>}
 
-                                <button
-                                    className={s.btnPrimary}
-                                    onClick={onSave}
-                                    disabled={saving}
-                                >
+                                <button className={s.btnPrimary} onClick={onSave} disabled={saving}>
                                     {saving ? "수정 중..." : "수정하기"}
                                 </button>
 
@@ -385,14 +342,10 @@ function SuccessModal({
             role="dialog"
             aria-modal="true"
             onMouseDown={(e) => {
-                // 배경 클릭 닫기
                 if (e.target === e.currentTarget) onClose();
             }}
         >
-            {/* dim */}
             <div className="absolute inset-0 bg-black/40" />
-
-            {/* modal */}
             <div className="relative z-10 w-[92%] max-w-sm rounded-xl border border-gray-200 bg-white p-5 shadow-lg">
                 <div className="text-base font-bold text-gray-900">{title}</div>
                 <div className="mt-2 text-sm text-gray-600">{message}</div>
