@@ -7,6 +7,7 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Pattern;
 import lombok.RequiredArgsConstructor;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
@@ -26,9 +27,12 @@ public class CustomerController {
             @RequestParam
             @NotBlank(message = "이메일은 필수 입력값입니다.")
             @Email(message = "이메일 형식이 올바르지 않습니다.")
+            @Pattern(
+                    regexp = "^[A-Za-z0-9._-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}$",
+                    message = "이메일 형식이 올바르지 않습니다."
+            )
             String email
     ) {
-
         CustomerEmailExistsResponse data = customerService.existsByEmail(email);
 
         return new RsData<>(
