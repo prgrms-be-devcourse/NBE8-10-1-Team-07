@@ -4,3 +4,6 @@ spring:
     username: root
     password: lldj123414
     driver-class-name: com.mysql.cj.jdbc.Driver
+custom:
+  site:
+    order-url: http://localhost:3000/orders
